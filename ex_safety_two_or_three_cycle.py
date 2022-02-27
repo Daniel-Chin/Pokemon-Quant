@@ -1,10 +1,8 @@
 from functools import lru_cache
 from itertools import combinations
-from math import log, exp
-from rule import DOUBLE, HALF, IMMUNE, NORMAL, RULE
+from softmax import softmax
 from jdt import jdtIter
-
-COLDNESS = 1
+from rule import DOUBLE, HALF, IMMUNE, NORMAL, RULE
 
 ALL_TYPES = '普火水草电冰斗毒地飞超虫岩鬼龙恶钢妖'
 LOSS = {
@@ -87,16 +85,6 @@ def assess(retreat, assult):
                 1 / len(best_action), 
             ))
     return softmax(losses)
-
-def softmax(X):
-    return log(
-        sum([
-            exp(x * COLDNESS) * prob
-            for (x, prob) in X
-        ]) / sum(
-            [prob for (x, prob) in X]
-        )
-    ) / COLDNESS
 
 @lru_cache(maxsize=171)
 def dbTypeRepr(t):

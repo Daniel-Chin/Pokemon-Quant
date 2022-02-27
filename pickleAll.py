@@ -1,6 +1,33 @@
+from os import system
+system('chcp 936')
 import csv
 from functools import lru_cache
 import pickle
+
+blacklist = [
+    '超梦', 
+    '梦幻', 
+    '洛奇亚', 
+    '凤王', 
+    '时拉比', 
+    '盖欧卡', 
+    '固拉多', 
+    '烈空坐', 
+    '基拉祈', 
+    '代欧奇希斯', 
+    '洛托姆', 
+    '帝牙卢卡', 
+    '帕路奇亚', 
+    '骑拉帝纳', 
+    '霏欧纳', 
+    '玛纳霏', 
+    '达克莱伊', 
+    '谢米', 
+    '阿尔宙斯', 
+    '拉帝亚斯', 
+    '拉帝欧斯', 
+    '皮丘', 
+]
 
 ALL_TYPES = '普火水草电冰斗毒地飞超虫岩鬼龙恶钢妖'
 MAP = {
@@ -56,7 +83,12 @@ def main():
                 line['type'] = t_map[i]
             except KeyError:
                 continue
+            if line['宝可梦'] in blacklist:
+                blacklist.remove(line['宝可梦'])
+                continue
             s[i] = line
+    if blacklist:
+        print('unused blacklist:', blacklist)
     with open('all_pokes.pickle', 'wb') as f:
         pickle.dump(s, f)
     print(len(s))
