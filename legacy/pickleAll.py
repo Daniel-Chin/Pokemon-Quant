@@ -67,6 +67,8 @@ def main():
             i = line['id']
             if i:
                 i = int(i.lstrip('#'))
+                if i in t_map:
+                    continue
                 t0 = mapType(line['t0'])
                 t1 = mapType(line['t1'])
                 if t1 is None:
@@ -91,6 +93,11 @@ def main():
         print('unused blacklist:', blacklist)
     with open('all_pokes.pickle', 'wb') as f:
         pickle.dump(s, f)
+    with open('all_pokes.csv', 'w', encoding='utf-8-sig', newline='') as f:
+        c = csv.DictWriter(f, s[1].keys())
+        c.writeheader()
+        for p in s.values():
+            c.writerow(p)
     print(len(s))
 
 main()

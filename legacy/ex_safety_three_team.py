@@ -23,7 +23,7 @@ def main():
         loss = softmax([
             assess(x, y) for (x, y) in permutations(team, 2)
         ])
-        overall_score = softmax([typeCombinationBestScore(x)[1] for x in team])
+        overall_score = softmax([typeCombinationBestScore(x)[1] for x in team], .1)
         records.append(( team, loss , overall_score))
 
     result = sorted(records, key = lambda x : x[1] / x[2])
