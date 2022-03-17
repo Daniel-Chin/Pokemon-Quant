@@ -90,6 +90,9 @@ def strongTo(t) -> set:
             s.add(defe)
     return s
 
+def sumTcScores(set_of_tcs):
+    return sum([x.total_score for x in set_of_tcs])
+
 if __name__ == '__main__':
     from os import system
     system('chcp 936')

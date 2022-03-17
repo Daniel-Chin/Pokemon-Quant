@@ -20,8 +20,11 @@ def allPokes():
 
 @lru_cache()
 def allPokesTotalScore():
+    return sumScores(allPokes().values())
+
+def sumScores(set_of_pokes):
     acc = 0
-    for poke in allPokes().values():
+    for poke in set_of_pokes:
         acc += poke['综合分']
     return acc
 
