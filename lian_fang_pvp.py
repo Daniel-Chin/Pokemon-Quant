@@ -8,6 +8,7 @@ import csv
 from itertools import combinations
 from scipy.special import comb
 from softmax import softmax, softmin
+from keepTop import KeepTop
 from graphic_terminal import printTable
 from allPokes import allPokesTotalScore
 from all_type_combinations import allTypeCombinations, TcsDoubleTo
@@ -24,7 +25,7 @@ def sumScores(tc_set):
 def main():
     # with open('ex_safety_2.pickle', 'rb') as f:
     #     ex_safety = pickle.load(f)
-    s = []
+    keepTop = KeepTop(200, lambda x : x[HOW_MANY + 1] - x[HOW_MANY] * .5)
     n_all_tc = len(allTypeCombinations())
     for team in jdtIter(combinations(
         allTypeCombinations(), HOW_MANY, 
@@ -44,16 +45,12 @@ def main():
             [x.high_score for x in team], 
             coldness = .0001, 
         )
-        s.append((
+        keepTop.eat((
             *team, 
             loss, 
             score, 
             # ex_safety[team], 
         ))
-    s.sort(
-        reverse = True, 
-        key = lambda x : x[HOW_MANY + 1] - x[HOW_MANY] * .5, 
-    )
     header = [f'宝可梦 {x}' for x in range(1, HOW_MANY + 1)]
     header += ['防盲', '综分']
     formatter = [None] * HOW_MANY
@@ -61,9 +58,9 @@ def main():
     with open('lianfang_6.csv', 'w', encoding='utf-8', newline='') as f:
         c = csv.writer(f)
         c.writerow(header)
-        c.writerows(s[:200])
+        c.writerows(keepTop.getList())
     printTable(
-        s[:80], 
+        keepTop.getList(), 
         header = header, 
         formatter = formatter, 
         delimiter = ' ', padding = 0, 
