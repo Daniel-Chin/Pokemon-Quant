@@ -1,26 +1,35 @@
 import requests
-from html.parser import HTMLParser
 import typing as tp
 from itertools import count
-from enum import Enum
+import pickle
+
+from chinese_converter import to_simplified
+
+from shared import *
 
 URL = 'https://wiki.52poke.com/wiki/%E5%AE%9D%E5%8F%AF%E6%A2%A6%E5%88%97%E8%A1%A8%EF%BC%88%E6%8C%89%E5%85%A8%E5%9B%BD%E5%9B%BE%E9%89%B4%E7%BC%96%E5%8F%B7%EF%BC%89'
 
 CACHE_INDEX = 'cache_index.html'
-class EventType(Enum):
-    StartTag = 'StartTag'
-    EndTag = 'EndTag'
-    Data = 'Data'
 
-Attrs = tp.List[tp.Tuple[str, tp.Optional[str]]]
-Event = tp.Tuple[EventType, str, tp.Optional[Attrs]]
+TYPE_CAST = {
+    **{t: t for t in ALL_TYPES},
+    '[[{{{6}}}（属性）|{{{6}}}]]': None, 
+    '一般': '普',
+    '飞行': '飞',
+    '超能力': '超',
+    '地面': '地',
+    '妖精': '妖',
+    '格斗': '斗',
+    '岩石': '岩',
+    '幽灵': '鬼',
+}
 
 def getPage():
     try:
         with open(CACHE_INDEX, 'rb') as f:
             content = f.read()
         print('Cache found. Use? Y/N')
-        if input().lower() == 'n':
+        if input().lower() != 'y':
             raise FileNotFoundError
     except FileNotFoundError:
         print('Getting page...')
@@ -32,56 +41,70 @@ def getPage():
             f.write(content)
     return content
 
-class StopWait(Exception):
-    def __init__(self, event: Event):
-        super().__init__()
-        self.event = event
-
-def waitForTagRegardlessAttr(
-    event: Event, eventType: EventType, tag: str, 
-):
-    if event[0] != eventType or event[1] != tag:
-        return
-    raise StopWait(event)
-
-def waitForData(
-    event: Event, 
-):
-    if event[0] != EventType.Data:
-        return
-    raise StopWait(event[1])
-
-def StaticParser() -> tp.Generator[None, Event, None]:
-    for gen in count(1):
-        try:
-            while True: 
-                waitForData((yield), EventType.StartTag, 'h2', )
-        except StopWait:
-            pass
-        else: assert False
-
-class MyParser(HTMLParser):
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        self.staticParser = StaticParser()
-
-    def handle_starttag(self, tag: str, attrs: Attrs):
-        self.staticParser.send((EventType.StartTag, tag, attrs))
-
-    def handle_endtag(self, tag: str):
-        self.staticParser.send((EventType.EndTag, tag, None))
-
-    def handle_data(self, data: str):
-        self.staticParser.send((EventType.Data, data, None))
-
-def parse():
-    page = getPage().decode('utf-8')
-    parser = MyParser()
-    parser.feed(page)
-    parser.close()
+class BadRow(Exception): pass
 
 def main():
-    parse()
+    parseContext = ParseContext(getPage().decode('utf-8'), [
+        'h2', 'table', 'tr', 'td', 
+    ], [
+        'class', 
+    ])
+    def parseRow(gen: int):
+        with parseContext.seekAndEnterTag('tr') as tr_sentinel:
+            try:
+                poke_id, = parseContext.seekTagAndConsumeForData('td', class_='rdexn-id')
+                assert poke_id.startswith('#'), poke_id
+                poke_id = poke_id[1:].strip()
+                # print(f'{poke_id = }')
+                poke_name,  = parseContext.seekTagAndConsumeForData('td', class_='rdexn-name')
+                # print(f'{poke_name = }')
+                poke_types = [
+                    TYPE_CAST[to_simplified(parseContext.seekTagAndConsumeForData(
+                        'td', class_=f'rdexn-type{i}', 
+                    )[0])] 
+                    for i in (1, 2)
+                ]
+                poke_types = [t for t in poke_types if t is not None]
+                for type_ in poke_types:
+                    assert type_ in ALL_TYPES, repr(type_)
+            except UnexpectedEndTag as e:
+                assert e.sentinel == tr_sentinel, (e, tr_sentinel)
+                raise BadRow()
+        return PokeAbstract(poke_id, poke_name, poke_types, gen)
+
+    allAbs: tp.List[PokeAbstract] = []
+    for gen in count(1):
+        try:
+            h2, = parseContext.seekTagAndConsumeForData('h2')
+        except StopIteration:
+            break
+        if not (h2.startswith('第') and h2.endswith('世代宝可梦')):
+            print('Warning! Invalid <h2>:', h2)
+            continue
+        print('Using id', gen, 'for', h2)
+        with parseContext.seekAndEnterTag('table') as table_sentinel:
+            in_heading = True
+            while True:
+                try:
+                    pokeAbs = parseRow(gen)
+                except UnexpectedEndTag as e:
+                    assert e.tag == 'table', e
+                    assert e.sentinel == table_sentinel, (e, table_sentinel)
+                    break
+                except BadRow:
+                    if in_heading:
+                        # print('bad row in heading')
+                        continue
+                    raise
+                else:
+                    in_heading = False
+                    allAbs.append(pokeAbs)
+                    # print(pokeAbs)
+    
+    with open('abs.pickle', 'wb') as f:
+        pickle.dump(allAbs, f)
+    
+    print('ok')
 
 if __name__ == '__main__':
     main()
